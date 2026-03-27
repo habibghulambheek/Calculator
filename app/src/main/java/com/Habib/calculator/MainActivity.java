@@ -1,9 +1,9 @@
 package com.Habib.calculator;
 
 import android.os.Bundle;
-import android.view.View;
 import android.widget.Button;
 import android.widget.TextView;
+import androidx.annotation.NonNull;
 import androidx.appcompat.app.AppCompatActivity;
 import java.text.DecimalFormat;
 
@@ -26,7 +26,30 @@ public class MainActivity extends AppCompatActivity {
         tvExpression = findViewById(R.id.tv_expression);
         tvDisplay    = findViewById(R.id.tv_display);
 
+        if (savedInstanceState != null) {
+            currentNumber = new StringBuilder(savedInstanceState.getString("currentNumber", ""));
+            firstOperand = savedInstanceState.getDouble("firstOperand");
+            pendingOperator = savedInstanceState.getString("pendingOperator", "");
+            isNewEntry = savedInstanceState.getBoolean("isNewEntry");
+            hasResult = savedInstanceState.getBoolean("hasResult");
+            expressionText = savedInstanceState.getString("expressionText", "");
+            tvExpression.setText(expressionText);
+            tvDisplay.setText(savedInstanceState.getString("displayText", "0"));
+        }
+
         setupClickListeners();
+    }
+
+    @Override
+    protected void onSaveInstanceState(@NonNull Bundle outState) {
+        super.onSaveInstanceState(outState);
+        outState.putString("currentNumber", currentNumber.toString());
+        outState.putDouble("firstOperand", firstOperand);
+        outState.putString("pendingOperator", pendingOperator);
+        outState.putBoolean("isNewEntry", isNewEntry);
+        outState.putBoolean("hasResult", hasResult);
+        outState.putString("expressionText", expressionText);
+        outState.putString("displayText", tvDisplay.getText().toString());
     }
 
     // ─────────────────────────── Setup ───────────────────────────
@@ -40,30 +63,36 @@ public class MainActivity extends AppCompatActivity {
         };
         for (int id : digitIds) {
             Button btn = findViewById(id);
-            btn.setOnClickListener(v -> appendDigit(((Button) v).getText().toString()));
+            if (btn != null) {
+                btn.setOnClickListener(v -> appendDigit(((Button) v).getText().toString()));
+            }
         }
 
         // Operator buttons
-        findViewById(R.id.btn_add)     .setOnClickListener(v -> setOperator("+"));
-        findViewById(R.id.btn_subtract).setOnClickListener(v -> setOperator("−"));
-        findViewById(R.id.btn_multiply).setOnClickListener(v -> setOperator("×"));
-        findViewById(R.id.btn_divide)  .setOnClickListener(v -> setOperator("÷"));
+        setClickListener(R.id.btn_add, v -> setOperator("+"));
+        setClickListener(R.id.btn_subtract, v -> setOperator("−"));
+        setClickListener(R.id.btn_multiply, v -> setOperator("×"));
+        setClickListener(R.id.btn_divide, v -> setOperator("÷"));
 
         // Action buttons
-        findViewById(R.id.btn_equals)   .setOnClickListener(v -> calculateResult());
-        findViewById(R.id.btn_clear)    .setOnClickListener(v -> clearAll());
-        findViewById(R.id.btn_ce)       .setOnClickListener(v -> clearEntry());
-        findViewById(R.id.btn_backspace).setOnClickListener(v -> backspace());
-        findViewById(R.id.btn_decimal)  .setOnClickListener(v -> addDecimal());
-        findViewById(R.id.btn_negate)   .setOnClickListener(v -> negate());
-        findViewById(R.id.btn_percent)  .setOnClickListener(v -> percent());
+        setClickListener(R.id.btn_equals, v -> calculateResult());
+        setClickListener(R.id.btn_clear, v -> clearAll());
+        setClickListener(R.id.btn_ce, v -> clearEntry());
+        setClickListener(R.id.btn_backspace, v -> backspace());
+        setClickListener(R.id.btn_decimal, v -> addDecimal());
+        setClickListener(R.id.btn_negate, v -> negate());
+        setClickListener(R.id.btn_percent, v -> percent());
+    }
+
+    private void setClickListener(int id, android.view.View.OnClickListener listener) {
+        android.view.View v = findViewById(id);
+        if (v != null) v.setOnClickListener(listener);
     }
 
     // ─────────────────────────── Digit input ───────────────────────────
 
     private void appendDigit(String digit) {
         if (hasResult) {
-            // After a result: start a fresh number but keep result visible until first key
             currentNumber.setLength(0);
             expressionText = "";
             tvExpression.setText("");
@@ -73,10 +102,9 @@ public class MainActivity extends AppCompatActivity {
             currentNumber.setLength(0);
             isNewEntry = false;
         }
-        // Limit display to 15 digits to prevent overflow
+        
         if (currentNumber.length() >= 15) return;
 
-        // Prevent multiple leading zeros  e.g. "007"
         if (currentNumber.toString().equals("0") && !digit.equals(".")) {
             currentNumber.setLength(0);
         }
@@ -87,9 +115,11 @@ public class MainActivity extends AppCompatActivity {
     // ─────────────────────────── Operators ───────────────────────────
 
     private void setOperator(String operator) {
-        if (currentNumber.length() == 0 && !hasResult) return;
+        // If nothing entered, treat as 0
+        if (currentNumber.length() == 0 && !hasResult) {
+            currentNumber.append("0");
+        }
 
-        // Chain operation: evaluate the pending one first
         if (!pendingOperator.isEmpty() && !isNewEntry) {
             double second = parseCurrentNumber();
             String chainResult = compute(firstOperand, second, pendingOperator);
@@ -121,7 +151,8 @@ public class MainActivity extends AppCompatActivity {
                 + "  =";
         String result   = compute(firstOperand, second, pendingOperator);
 
-        tvExpression.setText(fullExpr);
+        expressionText = fullExpr;
+        tvExpression.setText(expressionText);
 
         if (isErrorString(result)) {
             showError(result);
@@ -158,7 +189,6 @@ public class MainActivity extends AppCompatActivity {
 
     // ─────────────────────────── Special buttons ───────────────────────────
 
-    /** C — full reset */
     private void clearAll() {
         currentNumber.setLength(0);
         firstOperand    = 0;
@@ -170,7 +200,6 @@ public class MainActivity extends AppCompatActivity {
         tvDisplay.setText("0");
     }
 
-    /** CE — clear only current entry */
     private void clearEntry() {
         currentNumber.setLength(0);
         isNewEntry = false;
@@ -178,7 +207,6 @@ public class MainActivity extends AppCompatActivity {
         tvDisplay.setText("0");
     }
 
-    /** ⌫ — delete last character */
     private void backspace() {
         if (hasResult || isNewEntry) return;
         if (currentNumber.length() > 0) {
@@ -193,7 +221,6 @@ public class MainActivity extends AppCompatActivity {
         }
     }
 
-    /** . — decimal point */
     private void addDecimal() {
         if (hasResult) {
             currentNumber.setLength(0);
@@ -214,9 +241,12 @@ public class MainActivity extends AppCompatActivity {
         }
     }
 
-    /** +/− — toggle sign */
     private void negate() {
+        if (currentNumber.length() == 0 && !hasResult) {
+            currentNumber.append("0");
+        }
         if (currentNumber.length() == 0) return;
+        
         String cur = currentNumber.toString();
         if (cur.equals("0") || cur.equals("0.")) return;
         if (cur.startsWith("-")) {
@@ -228,12 +258,15 @@ public class MainActivity extends AppCompatActivity {
         if (hasResult) firstOperand = parseCurrentNumber();
     }
 
-    /** % — percentage */
     private void percent() {
+        if (currentNumber.length() == 0 && !hasResult) {
+             currentNumber.append("0");
+        }
         if (currentNumber.length() == 0) return;
+        
         double value = parseCurrentNumber();
         double pct   = (!pendingOperator.isEmpty())
-                ? (firstOperand * value / 100.0)   // e.g. 200 + 10% → 20
+                ? (firstOperand * value / 100.0)
                 : (value / 100.0);
         String fmt   = formatNumber(pct);
         currentNumber.setLength(0);
@@ -266,11 +299,6 @@ public class MainActivity extends AppCompatActivity {
         }
     }
 
-    /**
-     * Formats a double for display:
-     *  – Whole numbers shown without decimal point (e.g. 42, not 42.0)
-     *  – Up to 10 significant decimal places, trailing zeros stripped
-     */
     private String formatNumber(double value) {
         if (Double.isNaN(value) || Double.isInfinite(value)) return "Error";
         if (value == Math.floor(value) && Math.abs(value) < 1e15) {

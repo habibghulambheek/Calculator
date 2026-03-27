@@ -5,30 +5,17 @@
     android:layout_width="match_parent"
     android:layout_height="match_parent"
     android:background="@color/bg_app"
-    android:orientation="vertical">
-
-    <!-- ── Title bar ── -->
-    <TextView
-        android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:text="Calculator"
-        android:textColor="@color/text_primary"
-        android:textSize="18sp"
-        android:fontFamily="sans-serif-medium"
-        android:paddingStart="20dp"
-        android:paddingTop="20dp"
-        android:paddingBottom="4dp" />
+    android:orientation="vertical"
+    android:padding="8dp">
 
     <!-- ── Display area ── -->
     <LinearLayout
         android:layout_width="match_parent"
         android:layout_height="0dp"
-        android:layout_weight="2"
+        android:layout_weight="3"
         android:orientation="vertical"
         android:gravity="bottom|end"
-        android:paddingStart="20dp"
-        android:paddingEnd="20dp"
-        android:paddingBottom="12dp">
+        android:padding="16dp">
 
         <TextView
             android:id="@+id/tv_expression"
@@ -37,10 +24,9 @@
             android:gravity="end"
             android:text=""
             android:textColor="@color/text_secondary"
-            android:textSize="18sp"
+            android:textSize="20sp"
             android:singleLine="true"
-            android:ellipsize="start"
-            android:paddingBottom="2dp" />
+            android:ellipsize="start" />
 
         <TextView
             android:id="@+id/tv_display"
@@ -49,35 +35,22 @@
             android:gravity="end"
             android:text="0"
             android:textColor="@color/text_primary"
-            android:textSize="56sp"
+            android:textSize="64sp"
             android:fontFamily="sans-serif-light"
             android:singleLine="true"
-            android:ellipsize="start"
+            android:ellipsize="end"
             app:autoSizeTextType="uniform"
-            app:autoSizeMinTextSize="20sp"
-            app:autoSizeMaxTextSize="56sp" />
+            app:autoSizeMinTextSize="32sp"
+            app:autoSizeMaxTextSize="64sp" />
 
     </LinearLayout>
 
-    <View
-        android:layout_width="match_parent"
-        android:layout_height="1dp"
-        android:background="@color/divider" />
-
-    <!-- BUTTON GRID
-         % | CE | C | ⌫
-         7 |  8 | 9 | ÷
-         4 |  5 | 6 | ×
-         1 |  2 | 3 | −
-        +/−|  0 | . | +
-        [   =  full width  ]
-    -->
+    <!-- BUTTON GRID -->
     <LinearLayout
         android:layout_width="match_parent"
         android:layout_height="0dp"
-        android:layout_weight="5"
-        android:orientation="vertical"
-        android:padding="6dp">
+        android:layout_weight="7"
+        android:orientation="vertical">
 
         <!-- ROW 1 -->
         <LinearLayout android:layout_width="match_parent" android:layout_height="0dp"
@@ -124,17 +97,15 @@
             <Button android:id="@+id/btn_add"     style="@style/CalcBtn.Operator"  android:text="+" />
         </LinearLayout>
 
-        <!-- ROW 6 — full-width = button, slightly taller -->
+        <!-- ROW 6 -->
         <LinearLayout android:layout_width="match_parent" android:layout_height="0dp"
-            android:layout_weight="1.3" android:orientation="horizontal">
+            android:layout_weight="1.2" android:orientation="horizontal">
             <Button
                 android:id="@+id/btn_equals"
                 style="@style/CalcBtn.Equals"
                 android:layout_width="match_parent"
                 android:layout_height="match_parent"
-                android:layout_weight="0"
-                android:text="="
-                android:textSize="28sp" />
+                android:text="=" />
         </LinearLayout>
 
     </LinearLayout>
