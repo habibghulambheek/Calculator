@@ -1,3 +1,19 @@
 <resources>
     <string name="app_name">Calculator</string>
+    <string name="history_desc">History</string>
+    <string name="currency_desc">Currency</string>
+    <string name="unit_converter_desc">Unit Converter</string>
+    <string name="clear_label">C</string>
+    <string name="percent_label">%</string>
+    <string name="divide_label">÷</string>
+    <string name="multiply_label">×</string>
+    <string name="subtract_label">−</string>
+    <string name="add_label">+</string>
+    <string name="equals_label">=</string>
+    <string name="decimal_label">.</string>
+    <string name="backspace_desc">Backspace</string>
+    <string name="mode_desc">Mode</string>
+    <string name="copied_to_clipboard">Copied to clipboard</string>
+    <string name="expression_format">%1$s %2$s</string>
+    <string name="result_format">%1$s %2$s %3$s =</string>
 </resources>

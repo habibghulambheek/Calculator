@@ -1,310 +1,339 @@
 package com.Habib.calculator;
 
+import android.content.ClipData;
+import android.content.ClipboardManager;
+import android.content.Context;
 import android.os.Bundle;
+import android.text.TextUtils;
+import android.view.View;
 import android.widget.Button;
-import android.widget.TextView;
+import android.widget.EditText;
+import android.widget.ImageButton;
+import android.widget.Toast;
 import androidx.annotation.NonNull;
 import androidx.appcompat.app.AppCompatActivity;
+import java.math.BigDecimal;
+import java.math.MathContext;
 import java.text.DecimalFormat;
+import java.text.DecimalFormatSymbols;
+import java.util.Locale;
 
 public class MainActivity extends AppCompatActivity {
 
-    private TextView tvExpression, tvDisplay;
+    private EditText etExpression, etDisplay;
 
-    private StringBuilder currentNumber = new StringBuilder();
-    private double firstOperand   = 0;
-    private String  pendingOperator = "";
-    private boolean isNewEntry    = true;
-    private boolean hasResult     = false;
-    private String  expressionText = "";
+    private BigDecimal firstOperand = BigDecimal.ZERO;
+    private BigDecimal lastResultValue = BigDecimal.ZERO;
+    private String pendingOperator = "";
+    private boolean isNewEntry = true;
+    private boolean hasResult = false;
+    private boolean isFullPrecisionShown = false;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_main);
 
-        tvExpression = findViewById(R.id.tv_expression);
-        tvDisplay    = findViewById(R.id.tv_display);
+        etExpression = findViewById(R.id.et_expression);
+        etDisplay = findViewById(R.id.et_display);
+
+        // Professional behavior: allow cursor navigation/scrolling but suppress soft keyboard
+        etExpression.setShowSoftInputOnFocus(false);
+        etDisplay.setShowSoftInputOnFocus(false);
+        etExpression.setShowSoftInputOnFocus(false);
+        etDisplay.setShowSoftInputOnFocus(false);
+        // Click logic for "Expandable Result" and "Copy" (Requirement 4)
+        etDisplay.setOnClickListener(v -> {
+            if (hasResult && !isErrorString(etDisplay.getText().toString())) {
+                togglePrecision();
+            }
+            copyToClipboard();
+        });
 
         if (savedInstanceState != null) {
-            currentNumber = new StringBuilder(savedInstanceState.getString("currentNumber", ""));
-            firstOperand = savedInstanceState.getDouble("firstOperand");
-            pendingOperator = savedInstanceState.getString("pendingOperator", "");
-            isNewEntry = savedInstanceState.getBoolean("isNewEntry");
-            hasResult = savedInstanceState.getBoolean("hasResult");
-            expressionText = savedInstanceState.getString("expressionText", "");
-            tvExpression.setText(expressionText);
-            tvDisplay.setText(savedInstanceState.getString("displayText", "0"));
+            restoreState(savedInstanceState);
         }
 
         setupClickListeners();
     }
 
+    private void togglePrecision() {
+        if (!isFullPrecisionShown) {
+            // Expand to full plain string (Requirement 4)
+            etDisplay.setText(lastResultValue.stripTrailingZeros().toPlainString());
+            isFullPrecisionShown = true;
+        } else {
+            // Contract to compact view (Requirement 3)
+            etDisplay.setText(formatNumber(lastResultValue, true));
+            isFullPrecisionShown = false;
+        }
+        etDisplay.setSelection(etDisplay.getText().length());
+    }
+
+    private void copyToClipboard() {
+        String text = etDisplay.getText().toString();
+        if (!TextUtils.isEmpty(text) && !text.equals("0") && !isErrorString(text)) {
+            ClipboardManager clipboard = (ClipboardManager) getSystemService(Context.CLIPBOARD_SERVICE);
+            ClipData clip = ClipData.newPlainText("Calculator Result", text);
+            clipboard.setPrimaryClip(clip);
+            Toast.makeText(this, R.string.copied_to_clipboard, Toast.LENGTH_SHORT).show();
+        }
+    }
+
+    private void restoreState(Bundle savedInstanceState) {
+        try {
+            firstOperand = new BigDecimal(savedInstanceState.getString("firstOperand", "0"));
+            lastResultValue = new BigDecimal(savedInstanceState.getString("lastResultValue", "0"));
+        } catch (Exception e) {
+            firstOperand = BigDecimal.ZERO;
+            lastResultValue = BigDecimal.ZERO;
+        }
+        pendingOperator = savedInstanceState.getString("pendingOperator", "");
+        isNewEntry = savedInstanceState.getBoolean("isNewEntry");
+        hasResult = savedInstanceState.getBoolean("hasResult");
+        isFullPrecisionShown = savedInstanceState.getBoolean("isFullPrecisionShown");
+        etExpression.setText(savedInstanceState.getString("expressionText", ""));
+        etDisplay.setText(savedInstanceState.getString("displayText", "0"));
+    }
+
     @Override
     protected void onSaveInstanceState(@NonNull Bundle outState) {
         super.onSaveInstanceState(outState);
-        outState.putString("currentNumber", currentNumber.toString());
-        outState.putDouble("firstOperand", firstOperand);
+        outState.putString("firstOperand", firstOperand.toString());
+        outState.putString("lastResultValue", lastResultValue.toString());
         outState.putString("pendingOperator", pendingOperator);
         outState.putBoolean("isNewEntry", isNewEntry);
         outState.putBoolean("hasResult", hasResult);
-        outState.putString("expressionText", expressionText);
-        outState.putString("displayText", tvDisplay.getText().toString());
+        outState.putBoolean("isFullPrecisionShown", isFullPrecisionShown);
+        outState.putString("expressionText", etExpression.getText().toString());
+        outState.putString("displayText", etDisplay.getText().toString());
     }
 
-    // ─────────────────────────── Setup ───────────────────────────
-
     private void setupClickListeners() {
-
-        // Digit buttons (0–9)
-        int[] digitIds = {
-                R.id.btn_0, R.id.btn_1, R.id.btn_2, R.id.btn_3, R.id.btn_4,
-                R.id.btn_5, R.id.btn_6, R.id.btn_7, R.id.btn_8, R.id.btn_9
-        };
+        // Numbers
+        int[] digitIds = {R.id.btn_0, R.id.btn_1, R.id.btn_2, R.id.btn_3, R.id.btn_4,
+                          R.id.btn_5, R.id.btn_6, R.id.btn_7, R.id.btn_8, R.id.btn_9};
         for (int id : digitIds) {
-            Button btn = findViewById(id);
-            if (btn != null) {
-                btn.setOnClickListener(v -> appendDigit(((Button) v).getText().toString()));
-            }
+            findViewById(id).setOnClickListener(v -> appendDigit(((Button) v).getText().toString()));
         }
 
-        // Operator buttons
+        // Operators
         setClickListener(R.id.btn_add, v -> setOperator("+"));
         setClickListener(R.id.btn_subtract, v -> setOperator("−"));
         setClickListener(R.id.btn_multiply, v -> setOperator("×"));
         setClickListener(R.id.btn_divide, v -> setOperator("÷"));
 
-        // Action buttons
-        setClickListener(R.id.btn_equals, v -> calculateResult());
+        // Actions
+        setClickListener(R.id.btn_equals, v -> calculateResult(true));
         setClickListener(R.id.btn_clear, v -> clearAll());
-        setClickListener(R.id.btn_ce, v -> clearEntry());
-        setClickListener(R.id.btn_backspace, v -> backspace());
         setClickListener(R.id.btn_decimal, v -> addDecimal());
-        setClickListener(R.id.btn_negate, v -> negate());
         setClickListener(R.id.btn_percent, v -> percent());
+
+        // Backspace (Requirement 1)
+        ImageButton btnBackspace = findViewById(R.id.btn_backspace);
+        if (btnBackspace != null) {
+            btnBackspace.setOnClickListener(v -> backspace());
+            btnBackspace.setOnLongClickListener(v -> {
+                clearAll();
+                return true;
+            });
+        }
+
+        // Utility Icons
+        setClickListener(R.id.btn_history, v -> Toast.makeText(this, R.string.history_desc, Toast.LENGTH_SHORT).show());
+        setClickListener(R.id.btn_currency, v -> Toast.makeText(this, R.string.currency_desc, Toast.LENGTH_SHORT).show());
+        setClickListener(R.id.btn_unit, v -> Toast.makeText(this, R.string.unit_converter_desc, Toast.LENGTH_SHORT).show());
+        setClickListener(R.id.btn_mode, v -> Toast.makeText(this, R.string.mode_desc, Toast.LENGTH_SHORT).show());
     }
 
-    private void setClickListener(int id, android.view.View.OnClickListener listener) {
-        android.view.View v = findViewById(id);
+    private void setClickListener(int id, View.OnClickListener listener) {
+        View v = findViewById(id);
         if (v != null) v.setOnClickListener(listener);
     }
 
-    // ─────────────────────────── Digit input ───────────────────────────
-
     private void appendDigit(String digit) {
         if (hasResult) {
-            currentNumber.setLength(0);
-            expressionText = "";
-            tvExpression.setText("");
-            hasResult  = false;
-            isNewEntry = false;
-        } else if (isNewEntry) {
-            currentNumber.setLength(0);
+            clearAll();
+            hasResult = false;
+        }
+        if (isNewEntry) {
+            etDisplay.setText("");
             isNewEntry = false;
         }
-        
-        if (currentNumber.length() >= 15) return;
 
-        if (currentNumber.toString().equals("0") && !digit.equals(".")) {
-            currentNumber.setLength(0);
+        int cursor = etDisplay.getSelectionStart();
+        String current = etDisplay.getText().toString();
+
+        if (current.equals("0") && !digit.equals(".")) {
+            etDisplay.setText(digit);
+            etDisplay.setSelection(1);
+        } else {
+            // Allows editing any digit in place (Requirement 2)
+            StringBuilder sb = new StringBuilder(current);
+            if (cursor >= 0) {
+                sb.insert(cursor, digit);
+                etDisplay.setText(sb.toString());
+                etDisplay.setSelection(cursor + 1);
+            } else {
+                etDisplay.append(digit);
+            }
         }
-        currentNumber.append(digit);
-        tvDisplay.setText(currentNumber.toString());
     }
 
-    // ─────────────────────────── Operators ───────────────────────────
-
     private void setOperator(String operator) {
-        // If nothing entered, treat as 0
-        if (currentNumber.length() == 0 && !hasResult) {
-            currentNumber.append("0");
-        }
+        String currentText = etDisplay.getText().toString();
+        if (isErrorString(currentText)) currentText = "0";
 
         if (!pendingOperator.isEmpty() && !isNewEntry) {
-            double second = parseCurrentNumber();
-            String chainResult = compute(firstOperand, second, pendingOperator);
-            if (isErrorString(chainResult)) { showError(chainResult); return; }
-            firstOperand = Double.parseDouble(chainResult);
-            tvDisplay.setText(formatNumber(firstOperand));
-            currentNumber.setLength(0);
-            currentNumber.append(formatNumber(firstOperand));
+            calculateResult(false);
         } else {
-            firstOperand = parseCurrentNumber();
+            firstOperand = parseNumber(currentText);
         }
 
         pendingOperator = operator;
-        expressionText  = formatNumber(firstOperand) + "  " + operator;
-        tvExpression.setText(expressionText);
+        etExpression.setText(getString(R.string.expression_format, formatNumber(firstOperand, true), operator));
         isNewEntry = true;
-        hasResult  = false;
+        hasResult = false;
+        isFullPrecisionShown = false;
     }
 
-    // ─────────────────────────── Equals ───────────────────────────
-
-    private void calculateResult() {
+    private void calculateResult(boolean isFinal) {
         if (pendingOperator.isEmpty()) return;
 
-        double second   = isNewEntry ? firstOperand : parseCurrentNumber();
-        String fullExpr = formatNumber(firstOperand)
-                + "  " + pendingOperator
-                + "  " + formatNumber(second)
-                + "  =";
-        String result   = compute(firstOperand, second, pendingOperator);
-
-        expressionText = fullExpr;
-        tvExpression.setText(expressionText);
-
-        if (isErrorString(result)) {
-            showError(result);
+        BigDecimal secondOperand = parseNumber(etDisplay.getText().toString());
+        BigDecimal result;
+        
+        try {
+            result = compute(firstOperand, secondOperand, pendingOperator);
+        } catch (ArithmeticException e) {
+            showError("Cannot divide by 0");
             return;
         }
 
-        tvDisplay.setText(result);
-        firstOperand = Double.parseDouble(result);
-        currentNumber.setLength(0);
-        currentNumber.append(result);
-        pendingOperator = "";
-        isNewEntry = true;
-        hasResult  = true;
-    }
-
-    // ─────────────────────────── Arithmetic core ───────────────────────────
-
-    private String compute(double a, double b, String op) {
-        double result;
-        switch (op) {
-            case "+": result = a + b; break;
-            case "−": result = a - b; break;
-            case "×": result = a * b; break;
-            case "÷":
-                if (b == 0) return "Cannot divide by 0";
-                result = a / b;
-                break;
-            default:  return "Invalid operator";
+        lastResultValue = result;
+        if (isFinal) {
+            etExpression.setText(getString(R.string.result_format, formatNumber(firstOperand, true), pendingOperator, formatNumber(secondOperand, true)));
+            etDisplay.setText(formatNumber(result, true));
+            hasResult = true;
+            pendingOperator = "";
+            isFullPrecisionShown = false;
+        } else {
+            firstOperand = result;
+            etDisplay.setText(formatNumber(result, true));
         }
-        if (Double.isInfinite(result)) return "Result too large";
-        if (Double.isNaN(result))      return "Undefined result";
-        return formatNumber(result);
+        isNewEntry = true;
     }
 
-    // ─────────────────────────── Special buttons ───────────────────────────
+    private BigDecimal compute(BigDecimal a, BigDecimal b, String op) {
+        switch (op) {
+            case "+": return a.add(b);
+            case "−": return a.subtract(b);
+            case "×": return a.multiply(b);
+            case "÷":
+                if (b.compareTo(BigDecimal.ZERO) == 0) throw new ArithmeticException();
+                return a.divide(b, MathContext.DECIMAL128);
+            default: return BigDecimal.ZERO;
+        }
+    }
 
     private void clearAll() {
-        currentNumber.setLength(0);
-        firstOperand    = 0;
+        etDisplay.setText("0");
+        etExpression.setText("");
+        firstOperand = BigDecimal.ZERO;
+        lastResultValue = BigDecimal.ZERO;
         pendingOperator = "";
-        isNewEntry      = true;
-        hasResult       = false;
-        expressionText  = "";
-        tvExpression.setText("");
-        tvDisplay.setText("0");
-    }
-
-    private void clearEntry() {
-        currentNumber.setLength(0);
-        isNewEntry = false;
-        hasResult  = false;
-        tvDisplay.setText("0");
+        isNewEntry = true;
+        hasResult = false;
+        isFullPrecisionShown = false;
     }
 
     private void backspace() {
-        if (hasResult || isNewEntry) return;
-        if (currentNumber.length() > 0) {
-            currentNumber.deleteCharAt(currentNumber.length() - 1);
-            String display = currentNumber.toString();
-            if (display.isEmpty() || display.equals("-")) {
-                currentNumber.setLength(0);
-                tvDisplay.setText("0");
-            } else {
-                tvDisplay.setText(display);
+        if (hasResult) {
+            etExpression.setText("");
+            hasResult = false;
+            return;
+        }
+        int cursor = etDisplay.getSelectionStart();
+        if (cursor > 0) {
+            StringBuilder sb = new StringBuilder(etDisplay.getText().toString());
+            sb.deleteCharAt(cursor - 1);
+            etDisplay.setText(sb.toString());
+            etDisplay.setSelection(cursor - 1);
+            if (etDisplay.getText().toString().isEmpty()) {
+                etDisplay.setText("0");
+                isNewEntry = true;
             }
         }
     }
 
     private void addDecimal() {
-        if (hasResult) {
-            currentNumber.setLength(0);
-            currentNumber.append("0");
-            hasResult      = false;
-            expressionText = "";
-            tvExpression.setText("");
-        }
-        if (isNewEntry) {
-            currentNumber.setLength(0);
-            currentNumber.append("0");
+        if (hasResult || isNewEntry) {
+            etDisplay.setText("0.");
+            etDisplay.setSelection(2);
+            hasResult = false;
             isNewEntry = false;
+            return;
         }
-        if (currentNumber.length() == 0) currentNumber.append("0");
-        if (!currentNumber.toString().contains(".")) {
-            currentNumber.append(".");
-            tvDisplay.setText(currentNumber.toString());
+        String text = etDisplay.getText().toString();
+        if (!text.contains(".")) {
+            int cursor = etDisplay.getSelectionStart();
+            StringBuilder sb = new StringBuilder(text);
+            sb.insert(cursor, ".");
+            etDisplay.setText(sb.toString());
+            etDisplay.setSelection(cursor + 1);
         }
-    }
-
-    private void negate() {
-        if (currentNumber.length() == 0 && !hasResult) {
-            currentNumber.append("0");
-        }
-        if (currentNumber.length() == 0) return;
-        
-        String cur = currentNumber.toString();
-        if (cur.equals("0") || cur.equals("0.")) return;
-        if (cur.startsWith("-")) {
-            currentNumber.deleteCharAt(0);
-        } else {
-            currentNumber.insert(0, "-");
-        }
-        tvDisplay.setText(currentNumber.toString());
-        if (hasResult) firstOperand = parseCurrentNumber();
     }
 
     private void percent() {
-        if (currentNumber.length() == 0 && !hasResult) {
-             currentNumber.append("0");
-        }
-        if (currentNumber.length() == 0) return;
+        BigDecimal value = parseNumber(etDisplay.getText().toString());
+        BigDecimal result;
         
-        double value = parseCurrentNumber();
-        double pct   = (!pendingOperator.isEmpty())
-                ? (firstOperand * value / 100.0)
-                : (value / 100.0);
-        String fmt   = formatNumber(pct);
-        currentNumber.setLength(0);
-        currentNumber.append(fmt);
-        tvDisplay.setText(fmt);
+        // Professional logic: if operator pending (+/-), calculate percentage of firstOperand
+        if (!pendingOperator.isEmpty() && (pendingOperator.equals("+") || pendingOperator.equals("−"))) {
+            result = firstOperand.multiply(value).divide(new BigDecimal("100"), MathContext.DECIMAL128);
+        } else {
+            result = value.divide(new BigDecimal("100"), MathContext.DECIMAL128);
+        }
+        
+        lastResultValue = result;
+        etDisplay.setText(formatNumber(result, true));
+        isNewEntry = false; // Allow continuing input
+        isFullPrecisionShown = false;
     }
 
-    // ─────────────────────────── Helpers ───────────────────────────
-
     private void showError(String msg) {
-        tvDisplay.setText(msg);
-        currentNumber.setLength(0);
+        etDisplay.setText(msg);
         pendingOperator = "";
-        firstOperand    = 0;
-        isNewEntry      = true;
-        hasResult       = false;
+        isNewEntry = true;
+        hasResult = false;
     }
 
     private boolean isErrorString(String s) {
-        return s.startsWith("Cannot") || s.startsWith("Invalid")
-                || s.startsWith("Result") || s.startsWith("Undefined");
+        return s.equals("Error") || s.contains("divide") || s.equals("Infinity") || s.equals("NaN");
     }
 
-    private double parseCurrentNumber() {
+    private BigDecimal parseNumber(String s) {
         try {
-            if (currentNumber.length() == 0) return 0;
-            return Double.parseDouble(currentNumber.toString());
-        } catch (NumberFormatException e) {
-            return 0;
+            String sanitized = s.replace("−", "-").replace("×", "*").replace("÷", "/");
+            return new BigDecimal(sanitized);
+        } catch (Exception e) {
+            return BigDecimal.ZERO;
         }
     }
 
-    private String formatNumber(double value) {
-        if (Double.isNaN(value) || Double.isInfinite(value)) return "Error";
-        if (value == Math.floor(value) && Math.abs(value) < 1e15) {
-            return String.valueOf((long) value);
+    private String formatNumber(BigDecimal value, boolean compact) {
+        double dValue = value.doubleValue();
+        // Requirement 3: Scientific notation for extremes
+        if (compact && (Math.abs(dValue) >= 1e11 || (Math.abs(dValue) > 0 && Math.abs(dValue) < 1e-7))) {
+            DecimalFormat df = new DecimalFormat("0.######E0", DecimalFormatSymbols.getInstance(Locale.US));
+            return df.format(dValue);
         }
-        DecimalFormat df = new DecimalFormat("#.##########");
-        return df.format(value);
+
+        // Limit digits in compact view
+        if (compact && value.precision() > 14) {
+            return value.round(new MathContext(12)).stripTrailingZeros().toPlainString();
+        }
+
+        return value.stripTrailingZeros().toPlainString();
     }
 }

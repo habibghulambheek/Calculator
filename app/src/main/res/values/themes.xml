@@ -1,54 +1,49 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
 
-    <!-- ── App theme ── -->
     <style name="Theme.Calculator" parent="Theme.MaterialComponents.DayNight.NoActionBar">
-        <item name="colorPrimary">@color/btn_equals</item>
-        <item name="colorPrimaryVariant">#005BA0</item>
-        <item name="colorOnPrimary">@color/text_primary</item>
+        <item name="colorPrimary">@color/color_operator</item>
         <item name="android:windowBackground">@color/bg_app</item>
         <item name="android:statusBarColor">@color/bg_app</item>
         <item name="android:navigationBarColor">@color/bg_app</item>
     </style>
 
-    <!-- ── Base calculator button ── -->
-    <style name="CalcBtn">
+    <style name="CalcBtn" parent="Widget.MaterialComponents.Button">
         <item name="android:layout_width">0dp</item>
-        <item name="android:layout_height">match_parent</item>
-        <item name="android:layout_weight">1</item>
+        <item name="android:layout_height">80dp</item>
+        <item name="android:layout_columnWeight">1</item>
         <item name="android:layout_margin">4dp</item>
-        <item name="android:textSize">24sp</item>
-        <item name="android:textColor">@color/text_primary</item>
-        <item name="android:gravity">center</item>
-        <item name="android:stateListAnimator">@null</item>
-        <item name="android:elevation">0dp</item>
+        <item name="android:textSize">28sp</item>
         <item name="android:insetTop">0dp</item>
         <item name="android:insetBottom">0dp</item>
-        <item name="cornerRadius">16dp</item>
+        <item name="android:insetLeft">0dp</item>
+        <item name="android:insetRight">0dp</item>
+        <item name="cornerRadius">40dp</item>
+        <item name="backgroundTint">@color/btn_bg_default</item>
+        <item name="android:textColor">@color/color_number</item>
+        <item name="android:textAllCaps">false</item>
+        <item name="rippleColor">#33FFFFFF</item>
     </style>
 
-    <!-- Number keys -->
-    <style name="CalcBtn.Number">
-        <item name="android:background">@drawable/btn_bg_number</item>
+    <style name="CalcBtn.TextOnly" parent="CalcBtn">
+        <item name="backgroundTint">@color/btn_bg_default</item>
+        <item name="android:background">?attr/selectableItemBackgroundBorderless</item>
     </style>
 
-    <!-- Special keys (C, CE, ⌫, %) -->
-    <style name="CalcBtn.Special">
-        <item name="android:background">@drawable/btn_bg_special</item>
-        <item name="android:textSize">20sp</item>
+    <style name="CalcBtn.Icon" parent="">
+        <item name="android:layout_width">0dp</item>
+        <item name="android:layout_height">80dp</item>
+        <item name="android:layout_columnWeight">1</item>
+        <item name="android:layout_margin">4dp</item>
+        <item name="android:padding">20dp</item>
+        <item name="android:scaleType">fitCenter</item>
+        <item name="android:background">?attr/selectableItemBackgroundBorderless</item>
     </style>
 
-    <!-- Operator keys (+, −, ×, ÷) -->
-    <style name="CalcBtn.Operator">
-        <item name="android:background">@drawable/btn_bg_operator</item>
-        <item name="android:textColor">@color/text_operator</item>
-        <item name="android:textSize">28sp</item>
-    </style>
-
-    <!-- Equals key -->
-    <style name="CalcBtn.Equals">
-        <item name="android:background">@drawable/btn_bg_equals</item>
-        <item name="android:textSize">30sp</item>
+    <style name="CalcBtn.Equals" parent="CalcBtn">
+        <item name="backgroundTint">@color/btn_bg_equals</item>
+        <item name="android:textColor">@color/white</item>
+        <item name="cornerRadius">24dp</item>
     </style>
 
 </resources>
